@@ -14,12 +14,12 @@
 予定のケースの数 = 合格 + 不合格 + 保留（作者の決め）。CMS の様式の表には Planned・Run・Reviewed・Passed・Failed・To Be Run・Held の行があり、様式は「the number of test cases passed plus the number of test cases failed plus the number of test cases held must match the total number of test cases reviewed」と書く。ここでは Reviewed と To Be Run の行を使わず、予定の数と比べる。
 
 <!-- generated:start -->
-<!-- この区画は tools/test_report.py が pytest の junit から作った。手で直さない（2026-10-28 06:24:17） -->
+<!-- この区画は tools/test_report.py が pytest の junit から作った。手で直さない（2026-10-28 06:34:11） -->
 
 | 項目 | 値 |
 |---|---|
-| 試験した commit | `5832e1a08718f22d8b3b4b61903fd858d4592dbf`（作業木は commit 済みと同じ） |
-| 日時（UTC） | 2026-10-28 06:24:17 |
+| 試験した commit | `f639a4c9cc2af751ee8cb8053a69e98b362c7308`（作業木は commit 済みと同じ） |
+| 日時（UTC） | 2026-10-28 06:34:11 |
 | Python | 3.12.10（Windows 11） |
 | pytest | 9.1.1 |
 | pytest 全体 | 450 本中 450 本が合格、0 本が不合格、0 本を飛ばした |
