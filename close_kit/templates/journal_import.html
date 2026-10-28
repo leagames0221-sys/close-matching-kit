@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}仕訳の取り込み{% endblock %}
+{% block body %}
+<h1>仕訳を CSV で取り込む</h1>
+<p>列: <code>{{ columns | join(',') }}</code>（弥生会計の仕訳データの項目名にならった。勘定科目は名前でなく勘定コードで書く）。同じ伝票No. の行が 1 つの仕訳になる。1 件でも誤りがあれば全部を取り込まない。文字コードは UTF-8 か Shift_JIS。</p>
+{% if result %}
+  {% if result.ok %}<p class="ok">{{ result.journal_ids | length }} 件の仕訳を下書きに保存した。<a href="{{ base }}/journals">仕訳の一覧</a></p>
+  {% else %}<div class="error"><p>取り込まなかった。理由:</p><ul>{% for e in result.errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+{% endif %}
+<form method="post" action="{{ base }}/journals/import" enctype="multipart/form-data" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+  <label>ファイル <input type="file" name="file" required></label>
+  <button type="submit">取り込む</button>
+</form>
+{% endblock %}

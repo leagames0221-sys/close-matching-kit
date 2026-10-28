@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}先に必要な手順{% endblock %}
+{% block body %}
+<h1>この画面は今は使えない</h1>
+<p class="error">{{ message }}</p>
+{% if to_production %}
+<p>この環境からは出せない。上の帯の「production へ」と同じ道で、<a href="/production/">production へ</a>行く。</p>
+{% elif env == 'production' %}
+<p>本番の設定の版は、変更の申請が「本番に適用」された時にだけ入る。管理者が sandbox の「ワークブック」から版 2 の形のワークブックを読み込み、<a href="{{ base }}/changes">変更の申請</a>で本番へ上げる。</p>
+{% else %}
+<p>管理者が「ワークブック」から、版 2 の形のワークブック（承認ルート・作業一覧・会社の休日のシートと、説明・照合セットの足した列がある物）を読み込む。</p>
+{% endif %}
+<p><a href="{{ base }}/">ホームへ戻る</a></p>
+{% endblock %}

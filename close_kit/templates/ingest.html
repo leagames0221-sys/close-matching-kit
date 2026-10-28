@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}明細の取り込み{% endblock %}
+{% block body %}
+<h1>明細の取り込み</h1>
+<p>全銀（固定長）、camt.052（XML）、CSV を取り込む。残高や合計が合わないファイル、すでに取り込んだ範囲と重なるファイルは、ファイルごと拒否する。</p>
+{% if result %}
+  {% if result.ok %}
+  <div class="ok"><p>取り込んだ（{{ result.rows }} 行）。</p>
+  <ul>{% for n in result.notes %}<li>{{ n }}</li>{% endfor %}</ul></div>
+  {% else %}
+  <div class="error"><p>取り込めない（何も保存していない）:</p>
+  <ul>{% for r in result.reasons %}<li>{{ r }}</li>{% endfor %}</ul></div>
+  {% endif %}
+{% endif %}
+{% if not cfg %}<p>設定の版がまだ無い。先にワークブックを読み込む。</p>
+{% elif "作成者" in user.roles or "管理者" in user.roles %}
+<form method="post" action="{{ base }}/ingest" enctype="multipart/form-data" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+  <label>データ源
+    <select name="source">{% for s in cfg.sources %}<option value="{{ s.name }}">{{ s.name }}（{{ s.format }}）</option>{% endfor %}</select>
+  </label>
+  <label>ファイル <input type="file" name="file" required></label>
+  <button type="submit">取り込む</button>
+</form>
+{% else %}<p>取り込めるのは作成者か管理者だけ。</p>{% endif %}
+<h2>取り込み済みの束</h2>
+<table>
+<tr><th>束</th><th>データ源</th><th>口座</th><th>形式</th><th>勘定日の範囲</th><th>行数</th><th>メモ</th></tr>
+{% for b in ov.batches %}<tr><td>{{ b.id }}</td><td>{{ b.source }}</td><td>{{ b.account }}</td><td>{{ b.fmt }}</td><td>{{ b.date_from }} 〜 {{ b.date_to }}</td><td class="num">{{ b.row_count }}</td><td>{{ b.note }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}ホーム{% endblock %}
+{% block body %}
+<h1>ホーム</h1>
+<p>今の設定の版: {% if ov.version_id %}版 {{ ov.version_id }}{% else %}まだ無い（{% if env == 'production' %}管理者が<a href="{{ base }}/changes">変更の申請</a>で上げる{% else %}管理者が「ワークブック」から読み込む{% endif %}）{% endif %}</p>
+{% if cfg %}
+<p>照合セット:
+  {% for m in cfg.match_sets %}<a href="{{ base }}/match?ms={{ m.name | urlencode }}">{{ m.name }}</a>{% if not loop.last %}、{% endif %}{% endfor %}
+</p>
+{% endif %}
+<h2>取り込んだ明細の束</h2>
+{% if ov.batches %}
+<table>
+<tr><th>束</th><th>データ源</th><th>口座</th><th>形式</th><th>勘定日の範囲</th><th>行数</th><th>sha256（先頭）</th><th>取り込み日時</th></tr>
+{% for b in ov.batches %}
+<tr><td>{{ b.id }}</td><td>{{ b.source }}</td><td>{{ b.account }}</td><td>{{ b.fmt }}</td>
+<td>{{ b.date_from }} 〜 {{ b.date_to }}</td><td class="num">{{ b.row_count }}</td><td>{{ b.sha256[:12] }}</td><td>{{ b.created_at }}</td></tr>
+{% endfor %}
+</table>
+{% else %}<p>まだ取り込んでいない。</p>{% endif %}
+<h2>設定の版</h2>
+<table>
+<tr><th>版</th><th>schema</th><th>sha256（先頭）</th><th>読み込んだ人</th><th>日時</th></tr>
+{% for v in ov.versions %}<tr><td>{{ v.id }}</td><td>{{ v.schema_version }}</td><td>{{ v.sha256[:12] }}</td><td>{{ v.loaded_by }}</td><td>{{ v.loaded_at }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

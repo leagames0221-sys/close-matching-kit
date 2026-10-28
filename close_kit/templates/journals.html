@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}仕訳{% endblock %}
+{% block body %}
+<h1>仕訳</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+<p>
+  {% if "作成者" in user.roles %}<a href="{{ base }}/journals/new">手で入力する</a>・<a href="{{ base }}/journals/import">CSV で取り込む</a>・{% endif %}
+  <a href="{{ base }}/journals.csv">一覧を CSV で出す</a>
+</p>
+<form method="get" action="{{ base }}/journals" class="inline">
+  <label>状態 <select name="status"><option value="">すべて</option>{% for k in ['下書き','承認待ち','承認済み','却下','取り下げ'] %}<option {{ 'selected' if k == status }}>{{ k }}</option>{% endfor %}</select></label>
+  <button type="submit">絞り込む</button>
+</form>
+<table>
+<tr><th>番号</th><th>日付</th><th>期間</th><th>状態</th><th>作った人</th><th>方法</th><th>借方合計</th><th>摘要</th><th>理由コード</th><th>結び付き</th><th>決めた人</th></tr>
+{% for j in journals %}
+<tr><td><a href="{{ base }}/journals/{{ j.id }}">{{ j.number }}</a></td><td>{{ j.entry_date }}</td><td>{{ j.period }}</td><td>{{ j.status }}</td><td>{{ j.created_name }}</td><td>{{ j.method }}</td>
+<td class="num">{{ j.debit_total | amount(mult) }}</td><td>{{ j.memo }}</td><td>{{ j.reason_code }}</td>
+<td>{% if j.link_group_id %}グループ {{ j.link_group_id }}{% elif j.link_txn_id %}行 {{ j.link_txn_id }}{% endif %}</td><td>{{ j.decided_name or '' }}</td></tr>
+{% endfor %}
+</table>
+{% if not journals %}<p>仕訳はまだ無い。</p>{% endif %}
+{% endblock %}

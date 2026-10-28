@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}照合{% endblock %}
+{% block body %}
+<h1>照合の実行と結果</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+{% if not cfg %}<p>設定の版がまだ無い。</p>
+{% else %}
+<form method="get" action="{{ base }}/match" class="inline">
+  <label>照合セット
+    <select name="ms">{% for m in sets %}<option value="{{ m.name }}" {{ 'selected' if m.name == ms }}>{{ m.name }}</option>{% endfor %}</select>
+  </label>
+  <button type="submit">表示</button>
+</form>
+{% if ms %}
+{% if "作成者" in user.roles or "管理者" in user.roles %}
+<form method="post" action="{{ base }}/match/run" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+  <input type="hidden" name="match_set" value="{{ ms }}">
+  <button type="submit">照合を実行する</button>
+</form>
+{% endif %}
+{% if summary %}
+<h2>区分ごとの件数（行数）</h2>
+<table>
+<tr><th>区分</th><th>左</th><th>右</th><th>見る</th></tr>
+{% for k in KLASSES %}
+<tr><td>{{ k }}</td><td class="num">{{ summary.by_class[k].L }}</td><td class="num">{{ summary.by_class[k].R }}</td>
+<td><a href="{{ base }}/match/rows?ms={{ ms | urlencode }}&amp;klass={{ k | urlencode }}">明細</a></td></tr>
+{% endfor %}
+</table>
+<p>区分の意味: 自動＝ルールで照合した／候補＝確認が要る／未照合＝相手が無い／重複＝同じ参照の行が同じデータ源に 2 つ以上あり、相手が見つからなかった行（相手がある重複の行は、候補や自動のまま「重複」の印を付けて見せる。相手が複数ありうる時は自動にせず候補）／手＝手の照合（承認待ち）</p>
+<h2>グループ（状態ごと）</h2>
+<table>
+<tr><th>種類／状態</th><th>数</th></tr>
+{% for k, n in summary.groups.items() %}<tr><td>{{ k }}</td><td class="num">{{ n }}</td></tr>{% endfor %}
+</table>
+<p><a href="{{ base }}/match/groups?ms={{ ms | urlencode }}">グループの一覧</a>・<a href="{{ base }}/match/groups?ms={{ ms | urlencode }}&amp;kind=候補">候補だけ</a>・<a href="{{ base }}/manual?ms={{ ms | urlencode }}">手の照合へ</a></p>
+{% if summary.last_run %}<p>最後の実行: 実行 {{ summary.last_run.id }}、設定の版 {{ summary.last_run.version_id }}、{{ summary.last_run.created_at }}</p>{% endif %}
+{% endif %}
+<h2>正解ファイルを読み込むと、率を出す（任意）</h2>
+<p>実際の業務の照合には正解が無いので、この欄は任意。CSV の見出しは「左の行,右の行」。</p>
+<form method="post" action="{{ base }}/match/metrics" enctype="multipart/form-data" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+  <input type="hidden" name="match_set" value="{{ ms }}">
+  <label>正解ファイル <input type="file" name="file" required></label>
+  <button type="submit">率を出す</button>
+</form>
+{% if metrics %}
+<table>
+<tr><th>項目</th><th>値</th></tr>
+<tr><td>正解の組</td><td class="num">{{ metrics.truth_pairs }}</td></tr>
+<tr><td>自動の組／うち正しい組</td><td class="num">{{ metrics.auto_pairs }} ／ {{ metrics.auto_correct }}</td></tr>
+<tr><td>自動の適合率</td><td class="num">{{ '%.4f' | format(metrics.precision) if metrics.precision is not none else '該当なし' }}</td></tr>
+<tr><td>自動の再現率</td><td class="num">{{ '%.4f' | format(metrics.recall) if metrics.recall is not none else '該当なし' }}</td></tr>
+<tr><td>自動＋候補の再現率</td><td class="num">{{ '%.4f' | format(metrics.recall_with_candidates) if metrics.recall_with_candidates is not none else '該当なし' }}</td></tr>
+<tr><td>未照合の行数</td><td class="num">{{ metrics.unmatched_rows }}</td></tr>
+<tr><td>重複の行数</td><td class="num">{{ metrics.duplicate_rows }}</td></tr>
+</table>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

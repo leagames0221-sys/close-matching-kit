@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}理由コード{% endblock %}
+{% block body %}
+<h1>理由コードを付ける</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+{% if not sets %}<p>照合セットが無い。</p>{% else %}
+<form method="get" action="{{ base }}/reasons" class="inline">
+  <label>照合セット <select name="ms">{% for m in sets %}<option value="{{ m.name }}" {{ 'selected' if m.name == ms }}>{{ m.name }}</option>{% endfor %}</select></label>
+  <button type="submit">表示</button>
+</form>
+<p>差額のあるグループと、銀行の側の未照合の行には処理が「仕訳」の理由コードだけ。帳簿の側の未照合の行には「仕訳」か「調整項目」（時期のずれ。翌期へ繰り越す）。重複・候補の行には付けられない。</p>
+<h2>差額の処理待ちのグループ</h2>
+<table>
+<tr><th>グループ</th><th>種類</th><th>左の合計</th><th>右の合計</th><th>行</th><th>理由コード</th></tr>
+{% for g in groups %}
+<tr><td>{{ g.id }}</td><td>{{ g.kind }}</td><td class="num">{{ g.left_total | amount(mult) }}</td><td class="num">{{ g.right_total | amount(mult) }}</td>
+<td>{% for r in detail.get(g.id, []) %}{{ '左' if r.side == 'L' else '右' }}{{ '（銀行）' if r.side == bank_side else '（帳簿）' }} {{ r.booking_date }} {{ r.amount_minor | amount(mult) }} {{ r.reference }}{% if not loop.last %} ／ {% endif %}{% endfor %}</td>
+<td>{% if "作成者" in user.roles %}
+<form method="post" action="{{ base }}/reasons/apply" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><input type="hidden" name="match_set" value="{{ ms }}"><input type="hidden" name="group_id" value="{{ g.id }}">
+<select name="reason_code">{% for r in reason_codes if r.action == '仕訳' %}<option value="{{ r.code }}">{{ r.code }} {{ r.name }}</option>{% endfor %}</select><button type="submit">仕訳の下書きを作る</button></form>
+{% else %}作成者だけ{% endif %}</td></tr>
+{% else %}<tr><td colspan="6">差額の処理待ちのグループは無い。</td></tr>
+{% endfor %}
+</table>
+<h2>未照合の行</h2>
+<table>
+<tr><th>行</th><th>側</th><th>日付</th><th>金額</th><th>参照</th><th>摘要</th><th>印</th><th>理由コード</th></tr>
+{% for r in rows %}
+<tr><td>{{ r.txn_id }}</td><td>{{ '銀行' if r.side == bank_side else '帳簿' }}</td><td>{{ r.booking_date }}</td><td class="num">{{ r.amount_minor | amount(mult) }}</td><td>{{ r.reference }}</td><td>{{ r.memo }}</td>
+<td>{% if r.journal_number %}仕訳あり {{ r.journal_number }}{% elif r.item_status %}調整項目 {{ r.item_status }}{% endif %}</td>
+<td>{% if "作成者" in user.roles and not r.journal_number and not r.item_status %}
+<form method="post" action="{{ base }}/reasons/apply" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><input type="hidden" name="match_set" value="{{ ms }}"><input type="hidden" name="txn_id" value="{{ r.txn_id }}">
+<select name="reason_code">{% for c in reason_codes if c.action == '仕訳' or r.side != bank_side %}<option value="{{ c.code }}">{{ c.code }} {{ c.name }}（{{ c.action }}）</option>{% endfor %}</select><button type="submit">付ける</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8">未照合の行は無い。</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+{% endblock %}

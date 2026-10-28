@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}ワークブックの読み込み{% endblock %}
+{% block body %}
+<h1>ワークブックの読み込み（sandbox）</h1>
+<p>設定のワークブック（.xlsx）を読み込む。誤りが 1 つでもあれば全部拒否し、どのシートの何行目のどの列かを一覧にする。</p>
+{% if saved %}<p class="ok">読み込んだ。設定の版 {{ saved }} になった。<a href="{{ base }}/config">設定を見る</a></p>{% endif %}
+{% if errors %}
+<div class="error">
+<p>読み込めない（{{ errors | length }} 件。何も保存していない）:</p>
+<ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% if env == 'production' %}
+<p class="notice">本番（production）には、ワークブックを読み込めない。読み込みは sandbox の「ワークブック」で行い、できた版を<a href="{{ base }}/changes">変更の申請</a>で本番へ上げる。</p>
+{% elif "管理者" in user.roles %}
+<form method="post" action="{{ base }}/workbook" enctype="multipart/form-data" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+  <label>ワークブック <input type="file" name="file" accept=".xlsx" required></label>
+  <button type="submit">読み込む</button>
+</form>
+{% else %}<p>読み込めるのは管理者だけ。</p>{% endif %}
+<h2>設定の版</h2>
+<table>
+<tr><th>版</th><th>schema</th><th>sha256（先頭）</th><th>読み込んだ人</th><th>日時</th></tr>
+{% for v in versions %}<tr><td>{{ v.id }}</td><td>{{ v.schema_version }}</td><td>{{ v.sha256[:12] }}</td><td>{{ v.loaded_by }}</td><td>{{ v.loaded_at }}</td></tr>{% endfor %}
+</table>
+{% endblock %}

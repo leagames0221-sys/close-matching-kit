@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}変更の申請{% endblock %}
+{% block body %}
+<h1>変更の申請（設定の版を本番へ上げる）</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+<p>本番の設定の版: {% if production %}版 {{ production }}{% else %}まだ無い{% endif %}。本番の版は、この申請が「本番に適用」された時にだけ変わる。ワークブックの読み込みは sandbox の版を作るだけで、本番には届かない。</p>
+<p>
+  {% if "管理者" in user.roles %}<a href="{{ base }}/changes/new">申請を作る</a>・<a href="{{ base }}/changes/new?rollback=1">前の版に戻す申請を作る</a>・{% endif %}
+  {% if "管理者" in user.roles or "監査人" in user.roles %}<a href="{{ base }}/changes.csv">一覧を CSV で出す</a>{% endif %}
+</p>
+<table>
+<tr><th>番号</th><th>作成日</th><th>題名</th><th>種類</th><th>申請者</th><th>状態</th><th>元の版</th><th>上げる版</th></tr>
+{% for r in requests %}
+<tr><td><a href="{{ base }}/changes/{{ r.id }}">{{ r.id }}</a></td><td>{{ r.created_at[:19] }}</td><td>{{ r.title }}</td><td>{{ r.kind }}</td><td>{{ r.requester_name }}</td>
+<td><span class="stage{% if r.state in ['確認済み', '却下', '取り下げ'] %} closed{% endif %}">{{ r.state }}</span></td>
+<td>{% if r.from_version_id %}版 {{ r.from_version_id }}{% else %}版なし{% endif %}</td><td>版 {{ r.to_version_id }}</td></tr>
+{% else %}<tr><td colspan="8">申請はまだ無い。</td></tr>{% endfor %}
+</table>
+{% endblock %}

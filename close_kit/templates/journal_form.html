@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}仕訳の手入力{% endblock %}
+{% block body %}
+<h1>仕訳を手で入力する</h1>
+{% if message %}<p class="error">{{ message }}</p>{% endif %}
+<p>下書きに保存する。保存・申請・承認の 3 回、同じ検証が走る（借方＝貸方・明細 2〜999 行・勘定コードが表にある・締めていない期間・摘要が数式の文字で始まらない）。金額は最小単位の整数（倍率 {{ mult }}）。</p>
+<form method="post" action="{{ base }}/journals/new" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+  <label>日付（西暦 2026-10-31） <input name="date" value="{{ values.get('date', '') }}" required></label>
+  <label>摘要 <input name="memo" value="{{ values.get('memo', '') }}" maxlength="200"></label>
+  <table>
+  <tr><th>勘定コード</th><th>借方</th><th>貸方</th><th>行の摘要</th></tr>
+  {% for i in range(1, n + 1) %}
+  <tr><td><input name="acc{{ i }}" value="{{ values.get('acc' ~ i, '') }}" size="10"></td>
+  <td><input name="dr{{ i }}" value="{{ values.get('dr' ~ i, '') }}" size="12"></td>
+  <td><input name="cr{{ i }}" value="{{ values.get('cr' ~ i, '') }}" size="12"></td>
+  <td><input name="lm{{ i }}" value="{{ values.get('lm' ~ i, '') }}" size="30"></td></tr>
+  {% endfor %}
+  </table>
+  <button type="submit">下書きに保存する</button>
+</form>
+<p>勘定コードの表: {% for a in accounts %}{{ a.code }} {{ a.name }}{% if not loop.last %}、{% endif %}{% endfor %}</p>
+{% endblock %}

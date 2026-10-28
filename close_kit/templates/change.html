@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}変更の申請 {{ d.req.id }}{% endblock %}
+{% block body %}
+{% set r = d.req %}
+<h1>変更の申請 {{ r.id }}：{{ r.title }}</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+<p>状態：<span class="stage{% if d.state in ['確認済み', '却下', '取り下げ'] %} closed{% endif %}">{{ d.state }}</span>
+  {% if d.state == '本番に適用済み' %}（申請者が確認すると閉じる）{% endif %}
+  {% if d.state == '確認できない' %}（閉じていない。戻しの申請の下書きを作れる）{% endif %}</p>
+
+<h2>申請の項目（NIST SP 800-128 付録 E の番号）</h2>
+<table>
+<tr><th>1 作成日</th><td>{{ r.created_at[:19] }}</td></tr>
+<tr><th>2 題名</th><td>{{ r.title }}（{{ r.kind }}）</td></tr>
+<tr><th>3 申請者</th><td>{{ d.requester_name }}</td></tr>
+<tr><th>4 変更の内容</th><td>設定の版 {{ r.to_version_id }} を本番に上げる（元の版：{% if r.from_version_id %}版 {{ r.from_version_id }}{% else %}版なし{% endif %}
+  {% if d.versions.to_version_id %}　上げる版の sha256 {{ d.versions.to_version_id.sha256[:16] }}…{% endif %}）</td></tr>
+<tr><th>5 理由</th><td>{{ r.justification }}</td></tr>
+<tr><th>6 急ぎの度合い</th><td>{{ r.urgency }}</td></tr>
+<tr><th>11 期待する機能の影響</th><td>{{ r.functional_impact }}</td></tr>
+<tr><th>12 しない時の影響</th><td>{{ r.impact_if_not }}</td></tr>
+<tr><th>15 戻しの計画</th><td>{% if r.rollback_version_id %}戻し先は設定の版 {{ r.rollback_version_id }}{% elif r.status == '下書き' %}申請を出した時の本番の版になる{% else %}戻し先なし（申請の時、本番に版が無かった）{% endif %}</td></tr>
+</table>
+
+{% if d.diff is none %}
+<p class="notice">「7 変わる部分」「8 影響する他の部分」「10 セキュリティの影響」は、申請を出した時に自動で出る。</p>
+{% else %}
+<h2>7 変わる部分（シートと行）</h2>
+{% if d.diff %}
+<table>
+<tr><th>シート</th><th>行</th><th>変更</th><th>項目：前 → 後</th></tr>
+{% for x in d.diff %}
+<tr><td>{{ x.sheet }}</td><td>{{ x.key }}</td><td class="{{ 'diffadd' if x.change == '追加' else ('diffdel' if x.change == '削除' else '') }}">{{ x.change }}</td>
+<td>{% for f in x.fields %}{{ f.field }}：{{ f.old }} → {{ f.new }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+{% endfor %}
+</table>
+{% else %}<p>本番の版と中身が同じ（変わる行は無い）。</p>{% endif %}
+
+<h2>8 影響する他の部分（本番）</h2>
+<h3>承認待ちの仕訳（承認できる人が変わる物）</h3>
+{% if d.impact.open_journals %}
+<table><tr><th>仕訳</th><th>借方合計</th><th>前</th><th>後</th></tr>
+{% for j in d.impact.open_journals %}<tr><td>{{ j.journal }}</td><td class="num">{{ j.debit_total | amount(mult) }}</td><td>{{ (j.before or ['(承認ルートの幅が無い)']) | join('、') }}</td><td>{{ (j.after or ['(承認ルートの幅が無い)']) | join('、') }}</td></tr>{% endfor %}</table>
+{% else %}<p>無い。</p>{% endif %}
+<h3>未完の作業（完了の条件か期日が変わる物）</h3>
+{% if d.impact.open_tasks %}
+<table><tr><th>期間</th><th>作業</th><th>完了の条件 前 → 後</th><th>期日 前 → 後</th></tr>
+{% for t in d.impact.open_tasks %}<tr><td>{{ t.period }}</td><td>{{ t.task_id }} {{ t.name }}</td><td>{{ t.condition_before }} → {{ t.condition_after }}</td><td>{{ t.due_before }} → {{ t.due_after }}</td></tr>{% endfor %}</table>
+<p>作った作業は、期間の作業を作り直すまで前の定義のまま。</p>
+{% else %}<p>無い。</p>{% endif %}
+<h3>使う照合セット</h3>
+<table><tr><th>照合セット</th><th>有効</th><th>今の版にもある</th><th>本番の明細の行数</th></tr>
+{% for m in d.impact.match_sets %}<tr><td>{{ m.name }}</td><td>{{ 'はい' if m.enabled else 'いいえ' }}</td><td>{{ 'はい' if m.in_old else 'いいえ' }}</td><td class="num">{{ m.rows }}</td></tr>{% endfor %}</table>
+
+<h2>10 セキュリティの影響（統制に関わる変更）</h2>
+{% if d.security.any %}
+<ul>
+{% for x in d.security.approval_route %}<li>承認ルート {{ x.key }}（{{ x.change }}）{% for f in x.fields %}　{{ f.field }}：{{ f.old }} → {{ f.new }}{% endfor %}</li>{% endfor %}
+{% for x in d.security.task_people %}<li>作業 {{ x.task }} の{{ x.field }}：{{ x.old }} → {{ x.new }}</li>{% endfor %}
+{% for x in d.security.closing %}<li>会計期間 {{ x.period }} の締め：{{ x.old }} → {{ x.new }}</li>{% endfor %}
+</ul>
+{% else %}<p>承認ルート・作業の作成者と確認者・締めの変更は無い。</p>{% endif %}
+{% if d.security.widened %}<p class="notice">この変更で、承認できる金額の幅が増える人：{% for n, rs in d.security.widened.items() %}<span class="mark">{{ n }}（{{ rs | join('、') }}）</span> {% endfor %}</p>{% endif %}
+{% endif %}
+
+<h2>試験の結果</h2>
+{% if not d.test %}<p>まだ試験をしていない（事前承認の後に自動で流れる）。</p>{% else %}
+{% set t = d.test %}{% set res = t.result %}
+<p>試験の結果 {{ t.id }}（{{ t.run_at[:19] }}）：<strong class="{{ 'bad' if t.result_status != '成功' else '' }}">{{ t.result_status }}</strong>。試験をした時の本番の版：{% if t.base_version_id %}版 {{ t.base_version_id }}{% else %}版なし{% endif %}、上げる版 {{ t.to_version_id }}（sha256 {{ t.to_sha256[:16] }}…）、本番の写しの時刻 {{ t.prod_copy_at[:19] }}。試験は使い捨ての DB で流れ、sandbox と本番のデータは変わっていない。</p>
+<h3>1 本番のデータで前と後</h3>
+{% set s1 = res.step1 %}
+{% if s1.status != '実施' %}<p>{{ s1.status }}：{{ s1.note }}</p>
+{% else %}
+<table><tr><th>区分</th><th>前（本番の版）</th><th>後（申請の版）</th></tr>
+{% for k in CLASS_ORDER %}<tr><td>{{ k }}</td><td class="num">{{ s1.before[k] }}</td><td class="num">{{ s1.after[k] }}</td></tr>{% endfor %}</table>
+<p>区分が変わった行：{{ s1.changed_count }} 件{% if s1.changed_count > s1.changed | length %}（先頭 {{ s1.changed | length }} 件を表示）{% endif %}</p>
+{% if s1.changed %}
+<table><tr><th>照合セット</th><th>データ源</th><th>勘定日</th><th>金額</th><th>参照</th><th>前</th><th>後</th></tr>
+{% for x in s1.changed %}<tr><td>{{ x.match_set }}</td><td>{{ x.source }}</td><td>{{ x.date }}</td><td class="num">{{ x.amount_minor | amount(mult) }}</td><td>{{ x.reference }}</td><td>{{ x.before }}</td><td>{{ x.after }}</td></tr>{% endfor %}</table>
+{% endif %}
+{% for n in s1.notes %}<p class="notice">{{ n }}</p>{% endfor %}
+{% endif %}
+<h3>2 見本の道筋</h3>
+{% set s2 = res.step2 %}
+{% if s2.status == '実施' %}
+<table><tr><th>期間</th><th>銀行の期末残高</th><th>調整後の銀行残高</th><th>帳簿の期末残高</th><th>調整後の帳簿残高</th><th>原因の分からない差</th></tr>
+{% for p, st in s2.statements.items() %}<tr><td>{{ p }}</td><td class="num">{{ st.bank_end | amount(mult) }}</td><td class="num">{{ st.adjusted_bank | amount(mult) }}</td><td class="num">{{ st.book_end | amount(mult) }}</td><td class="num">{{ st.adjusted_book | amount(mult) }}</td><td class="num">{{ st.difference | amount(mult) }}</td></tr>{% endfor %}</table>
+<p>承認済みの仕訳 {{ s2.approved_journals }} 件、調整項目 {{ s2.adjusting_items }} 件。</p>
+{% elif s2.status == '対象外' %}<p>対象外：{{ s2.note }}</p>
+{% else %}<p class="error">失敗（変更の影響）：{{ s2.step }} で止まった。{{ s2.note }}</p>{% endif %}
+<h3>3 変わったシートごとの効き目</h3>
+{% set s3 = res.step3 %}
+{% if s3.status != '実施' %}<p>{{ s3.status }}：{{ s3.note }}</p>
+{% else %}
+<p>変わったシート：{{ s3.changed_sheets | join('、') or '(無い)' }}</p>
+{% if s3.approval_route %}
+<table><tr><th>金額（境目）</th><th>承認できる人 前</th><th>後</th></tr>
+{% for b in s3.approval_route.boundaries %}<tr><td class="num">{{ b.amount | amount(mult) }}</td><td>{{ (b.before or ['(幅が無い)']) | join('、') }}</td><td>{{ (b.after or ['(幅が無い)']) | join('、') }}</td></tr>{% endfor %}</table>
+<p>本番の承認待ちの仕訳で承認できる人が変わる物：{{ s3.approval_route.open_journals | length }} 件</p>
+{% endif %}
+{% if s3.tasks is not none %}
+<p>本番の未完の作業で、完了の条件か期日が変わる物：{{ s3.tasks | length }} 件{% for x in s3.tasks %}<br>{{ x.period }} {{ x.task_id }}：条件 {{ x.condition_before }} → {{ x.condition_after }}、期日 {{ x.due_before }} → {{ x.due_after }}{% endfor %}</p>
+{% endif %}
+{% if s3.pass_rules %}<p>パスルールが変わった。区分ごとの件数の前と後は上の 1 の表（区分が変わった行 {{ s3.pass_rules.changed_count if s3.pass_rules.changed_count is not none else '-' }} 件）。</p>{% endif %}
+{% endif %}
+<details><summary>試験の記録（見本の各ファイルの sha256）</summary>
+<table>{% for n, h in t.samples.items() %}<tr><td>{{ n }}</td><td>{{ h }}</td></tr>{% endfor %}</table></details>
+{% endif %}
+
+<h2>結果の承認</h2>
+{% if d.test %}
+<p>試験の結果 {{ d.test.id }} への承認：承認者の役割の人 1 人と、管理者の役割の人 1 人の両方がそろうと「結果の承認済み」になる（どちらも申請者以外。同じ人が両方の役割を持っても 1 人分）。</p>
+<table><tr><th>承認した人</th><th>その時の役割</th><th>日時</th><th>利用者の作成日</th></tr>
+{% for a in d.approvals %}<tr><td>{{ a.user_name }}{% if a.user_name in d.widened_among_approvers %} <span class="mark">この変更で承認できる金額の幅が増える人</span>{% endif %}</td>
+<td>{{ a.roles.replace(',', '・') }}</td><td>{{ a.approved_at[:19] }}</td>
+<td>{{ d.marks[a.user_name].created_at[:19] }}{% if d.marks[a.user_name].after_request %} <span class="mark">申請より後に作られた利用者</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="4">まだ無い。</td></tr>{% endfor %}</table>
+{% endif %}
+
+<h2>状態の履歴（追記だけ）</h2>
+<table><tr><th>日時</th><th>誰が</th><th>その時の役割</th><th>環境</th><th>版</th><th>操作</th><th>状態</th><th>理由</th><th>利用者の作成日</th></tr>
+{% for e in d.events %}<tr><td>{{ e.at[:19] }}</td><td>{{ e.user_name }}</td><td>{{ e.roles.replace(',', '・') }}</td><td>{{ e.env }}</td><td>{{ e.version_id or '' }}</td><td>{{ e.action }}</td><td>{{ e.to_state }}</td><td>{{ e.reason }}</td>
+<td>{{ d.marks[e.user_name].created_at[:10] }}{% if d.marks[e.user_name].after_request %} <span class="mark">申請より後</span>{% endif %}</td></tr>{% endfor %}</table>
+
+<h2>この段の操作</h2>
+{% if not actions %}<p>あなたがこの状態でできる操作は無い。</p>{% endif %}
+{% macro post(act, label, reason=False, hidden=None, test=None) %}
+<form method="post" action="{{ base }}/changes/{{ d.req.id }}/{{ act }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+{% if hidden %}<input type="hidden" name="version_id" value="{{ hidden }}">{% endif %}
+{% if test %}<input type="hidden" name="test_id" value="{{ test }}">{% endif %}
+{% if reason %}<label>理由 <input name="reason" maxlength="300"></label>{% endif %}<button type="submit">{{ label }}</button></form>
+{% endmacro %}
+{% if 'submit' in actions %}{{ post('submit', '申請する') }}{% endif %}
+{% if 'pre_approve' in actions %}{{ post('pre_approve', '事前承認') }}{{ post('pre_reject', '事前却下', True) }}{% endif %}
+{% if 'retest' in actions %}{{ post('retest', '試験をやり直す') }}{% endif %}
+{% if 'result_approve' in actions %}{{ post('result_approve', '結果を承認', False, None, d.test.id) }}{% endif %}
+{% if 'result_reject' in actions %}{{ post('result_reject', '結果を却下', True, None, d.test.id) }}{% endif %}
+{% if 'apply' in actions %}{{ post('apply', '本番に適用', False, r.to_version_id) }}{% endif %}
+{% if 'confirm' in actions %}{{ post('confirm', '確認した') }}{% endif %}
+{% if 'cannot_confirm' in actions %}{{ post('cannot_confirm', '確認できない', True) }}{% endif %}
+{% if 'rollback' in actions %}{{ post('rollback', '戻しの申請の下書きを作る', True) }}{% endif %}
+{% if 'withdraw' in actions %}{{ post('withdraw', '取り下げる', True) }}{% endif %}
+<p><a href="{{ base }}/changes">変更の申請の一覧へ</a></p>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}明細（{{ klass }}）{% endblock %}
+{% block body %}
+<h1>区分「{{ klass }}」の明細（{{ ms }}）</h1>
+<table>
+<tr><th>側</th><th>データ源</th><th>勘定日</th><th>金額</th><th>参照</th><th>摘要</th><th>元の行</th><th>グループ</th><th>重複</th></tr>
+{% for r in rows %}
+<tr><td>{{ '左' if r.side == 'L' else '右' }}</td><td>{{ r.source }}</td><td>{{ r.booking_date }}</td>
+<td class="num">{{ r.amount_minor | amount(mult.get(r.source, 1)) }}</td><td>{{ r.reference }}</td><td>{{ r.memo }}</td><td>{{ r.ext_id }}</td><td>{{ r.group_id or '' }}</td><td>{{ '重複' if r.dup else '' }}</td></tr>
+{% endfor %}
+</table>
+{% if offset > 0 %}<a href="{{ base }}/match/rows?ms={{ ms | urlencode }}&amp;klass={{ klass | urlencode }}&amp;offset={{ offset - page }}">前の {{ page }} 行</a>{% endif %}
+{% if rows | length == page %}<a href="{{ base }}/match/rows?ms={{ ms | urlencode }}&amp;klass={{ klass | urlencode }}&amp;offset={{ offset + page }}">次の {{ page }} 行</a>{% endif %}
+<p><a href="{{ base }}/match?ms={{ ms | urlencode }}">照合へ戻る</a></p>
+{% endblock %}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}照合キット{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="env-{{ env }}">
+  <strong>照合キット</strong>
+  <span class="env">環境: {{ env }}{% if env == 'production' %}（本番）{% else %}（試験用）{% endif %}</span>
+  <span class="envswitch">{% if env == 'production' %}<a href="/sandbox/">sandbox へ</a>{% else %}<a href="/production/">production へ</a>{% endif %}</span>
+  {% if user %}
+  <nav>
+    <a href="{{ base }}/">ホーム</a>
+    <a href="{{ base }}/config">設定</a>
+    <a href="{{ base }}/ingest">明細の取り込み</a>
+    <a href="{{ base }}/match">照合</a>
+    <a href="{{ base }}/manual">手の照合</a>
+    <a href="{{ base }}/reasons">理由コード</a>
+    <a href="{{ base }}/adjusting">調整項目</a>
+    <a href="{{ base }}/journals">仕訳</a>
+    <a href="{{ base }}/reconcile">残高一致表</a>
+    <a href="{{ base }}/posting">転記ファイル</a>
+    <a href="{{ base }}/tasks">作業一覧</a>
+    <a href="{{ base }}/audit">操作の記録</a>
+    <a href="{{ base }}/changes">変更の申請</a>
+    <a href="{{ base }}/workbook">ワークブック</a>
+  </nav>
+  <form method="post" action="/logout" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+    <span>{{ user.name }}（{{ user.roles | sort | join('・') }}）</span>
+    <button type="submit">ログアウト</button>
+  </form>
+  {% endif %}
+</header>
+<main>
+{% block body %}{% endblock %}
+</main>
+<footer>BlackLine は BlackLine Inc. の製品名。この製品は同社と関係が無い。</footer>
+</body>
+</html>

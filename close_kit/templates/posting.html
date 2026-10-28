@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}転記ファイル{% endblock %}
+{% block body %}
+<h1>承認済み仕訳の転記ファイル</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+<p>列は SAP S/4HANA「Upload General Journal Entries」（F2548）の項目の技術名（BUKRS,BLART,BLDAT,BUDAT,WAERS,XBLNR,BKTXT,HKONT,WRSOL,WRHAB）。1 ファイル 999 仕訳まで。ファイルの先頭の 1 行に環境の名前が入る。転記ファイルは production だけが出す（sandbox の画面は試験用の表示で止まる）。SAP の上で取り込む試験はしていない。</p>
+{% if not mult_ok %}<p class="error">最小単位の倍率が 1 でないデータ源があるので、通貨 JPY のこのファイルは出さない。</p>{% endif %}
+<h2>まだ出していない承認済みの仕訳（{{ pending | length }} 件）</h2>
+<table>
+<tr><th>番号</th><th>日付</th><th>摘要</th><th>借方合計</th></tr>
+{% for j in pending %}<tr><td><a href="{{ base }}/journals/{{ j.id }}">{{ j.number }}</a></td><td>{{ j.entry_date }}</td><td>{{ j.memo }}{% if j.memo | length > 25 %}（BKTXT は 25 文字で切る）{% endif %}</td><td class="num">{{ j.debit_total | amount(mult) }}</td></tr>{% endfor %}
+</table>
+{% if "管理者" in user.roles %}
+<form method="post" action="{{ base }}/posting/export" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><button type="submit">転記ファイルを出力する</button></form>
+{% else %}<p>出力できるのは管理者だけ。</p>{% endif %}
+{% if result %}
+<h2>出力したファイル</h2>
+<ul>{% for f in result.files %}<li><a href="{{ base }}/posting/files/{{ f.id }}">{{ f.name }}</a>（{{ f.count }} 件、sha256 {{ f.sha256[:16] }}…）</li>{% endfor %}</ul>
+{% if result.truncated %}<p class="notice">摘要を 25 文字で切った仕訳: {{ result.truncated | join('、') }}</p>{% endif %}
+{% endif %}
+<h2>転記の記録（追記だけ）</h2>
+<table>
+<tr><th>日時</th><th>仕訳</th><th>操作</th><th>ファイル</th><th>sha256（先頭）</th><th>誰が</th><th>環境</th><th>メモ</th><th>外す</th></tr>
+{% for l in log %}<tr><td>{{ l.at }}</td><td>{{ l.number }}</td><td>{{ l.action }}</td><td>{% if l.file_id %}<a href="{{ base }}/posting/files/{{ l.file_id }}">{{ l.file_name }}</a>{% endif %}</td><td>{{ l.sha256[:12] }}</td><td>{{ l.by_name }}</td><td>{{ l.env }}</td><td>{{ l.note }}</td>
+<td>{% if l.action == '出力' and "管理者" in user.roles %}<form method="post" action="{{ base }}/posting/release/{{ l.journal_id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><input name="note" placeholder="外す理由"><button type="submit">外す</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="9">まだ出力していない。</td></tr>{% endfor %}
+</table>
+{% endblock %}

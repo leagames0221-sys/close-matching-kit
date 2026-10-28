@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}操作の記録{% endblock %}
+{% block body %}
+<h1>操作の記録</h1>
+<p>誰が・いつ・何を・どの環境・どの版で・結果。書き換えも削除もできない。{% if "管理者" in user.roles or "監査人" in user.roles %}<a href="{{ base }}/audit.csv">CSV で出す</a>{% endif %}</p>
+<table>
+<tr><th>id</th><th>日時</th><th>利用者</th><th>操作</th><th>環境</th><th>版</th><th>結果</th><th>内容</th></tr>
+{% for e in entries %}
+<tr><td>{{ e.id }}</td><td>{{ e.at }}</td><td>{{ e.user_name }}</td><td>{{ e.action }}</td><td>{{ e.env or '' }}</td><td>{{ e.version_id or '' }}</td><td>{{ e.outcome }}</td><td>{{ e.detail }}</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

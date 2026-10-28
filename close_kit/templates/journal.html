@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}仕訳 {{ j.number }}{% endblock %}
+{% block body %}
+<h1>仕訳 {{ j.number }}</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+<table>
+<tr><th>状態</th><td>{{ j.status }}</td><th>日付</th><td>{{ j.entry_date }}（期間 {{ j.period }}）</td></tr>
+<tr><th>作った人</th><td>{{ j.created_name }}（{{ j.method }}）</td><th>借方合計</th><td class="num">{{ j.debit_total | amount(mult) }}</td></tr>
+<tr><th>摘要</th><td colspan="3">{{ j.memo }}</td></tr>
+<tr><th>理由コード</th><td>{{ j.reason_code }}</td><th>結び付き</th><td>{% if j.link_group_id %}照合グループ {{ j.link_group_id }}{% elif j.link_txn_id %}未照合の行 {{ j.link_txn_id }}{% endif %}</td></tr>
+<tr><th>承認ルート（金額の幅）</th><td colspan="3">{% if route %}{{ route.lower | amount(mult) }} 以上{% if route.upper is not none %} {{ route.upper | amount(mult) }} 未満{% endif %}：{{ route.approvers | join('、') }}{% else %}当たる幅が無い{% endif %}</td></tr>
+{% if j.decided_by %}<tr><th>決めた人</th><td>{{ j.decided_name }}</td><th>日時</th><td>{{ j.decided_at }}（設定の版 {{ j.decision_version_id }}）</td></tr>
+<tr><th>承認の記録</th><td colspan="3">{% if decision %}決めた時の承認ルート（設定の版 {{ decision.version_id }}）：{% if decision.approvers is defined %}{{ decision.lower | amount(mult) }} 以上{% if decision.upper is not none %} {{ decision.upper | amount(mult) }} 未満{% endif %}、承認できる人 {{ decision.approvers | join('、') }}{% else %}当たる幅が無い{% endif %}{% else %}{{ j.decision_route }}{% endif %}{% if j.decision_note %}　理由: {{ j.decision_note }}{% endif %}</td></tr>{% endif %}
+</table>
+<table>
+<tr><th>行</th><th>勘定科目</th><th>借方</th><th>貸方</th><th>摘要</th></tr>
+{% for l in lines %}<tr><td>{{ l.line_no }}</td><td>{{ l.account_code }}{% if account_names.get(l.account_code) %} {{ account_names[l.account_code] }}{% endif %}</td><td class="num">{{ l.debit | amount(mult) if l.debit else '' }}</td><td class="num">{{ l.credit | amount(mult) if l.credit else '' }}</td><td>{{ l.memo }}</td></tr>{% endfor %}
+</table>
+{% if "作成者" in user.roles and (j.created_by == user.id or j.method == '照合の差額') and j.status in ['下書き', '承認待ち'] %}
+  {% if j.method == '照合の差額' and j.status == '下書き' %}<p class="notice">この仕訳は、許容差の中の差額を道具が下書きに作った物。内容を見てから申請する（役割「作成者」の誰でも申請・取り下げができる。承認は別の人が行う）。</p>{% endif %}
+  {% if j.status == '下書き' %}<form method="post" action="{{ base }}/journals/{{ j.id }}/submit" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><button type="submit">申請する</button></form>{% endif %}
+  <form method="post" action="{{ base }}/journals/{{ j.id }}/withdraw" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><button type="submit">取り下げる</button></form>
+{% endif %}
+{% if "承認者" in user.roles and j.status == '承認待ち' %}
+  {% if why_not %}<p class="notice">この仕訳はあなたは決められない: {{ why_not }}</p>{% endif %}
+  <form method="post" action="{{ base }}/journals/{{ j.id }}/approve" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><button type="submit">承認</button></form>
+  <form method="post" action="{{ base }}/journals/{{ j.id }}/reject" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><label>却下の理由 <input name="note" maxlength="300"></label><button type="submit">却下</button></form>
+{% endif %}
+<p><a href="{{ base }}/journals">仕訳の一覧へ</a></p>
+{% endblock %}

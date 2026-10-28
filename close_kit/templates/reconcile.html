@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}残高一致表{% endblock %}
+{% block body %}
+<h1>期末の残高一致表</h1>
+{% if not sets %}<p>「残高一致に使う」が「はい」の照合セットが無い。</p>{% else %}
+<form method="get" action="{{ base }}/reconcile" class="inline">
+  <label>照合セット <select name="ms">{% for m in sets %}<option value="{{ m.name }}" {{ 'selected' if m.name == ms }}>{{ m.name }}</option>{% endfor %}</select></label>
+  <label>会計期間 <select name="period">{% for p in periods %}<option {{ 'selected' if p == period }}>{{ p }}</option>{% endfor %}</select></label>
+  <button type="submit">表示</button>
+</form>
+{% if st %}
+<p><a href="{{ base }}/reconcile.csv?ms={{ ms | urlencode }}&amp;period={{ period | urlencode }}">この表を CSV で出す</a>　期末日 {{ st.period_end }} の時点の見え方（期末日より後の日付の行は、その時点ではまだ無かった物として扱う）</p>
+{% if not st.known %}
+<p class="error">{{ st.why_unknown }}　差は出さない。</p>
+{% else %}
+<table>
+<tr><th>銀行の側</th><th class="num">金額</th></tr>
+<tr><td>銀行の期末残高</td><td class="num">{{ st.bank_end | amount(mult) }}</td></tr>
+<tr><td>＋ 帳簿にあって銀行にまだ無い入金</td><td class="num">{{ st.transit_in | amount(mult) }}</td></tr>
+<tr><td>− 帳簿にあって銀行にまだ無い出金</td><td class="num">{{ st.outstanding_out | amount(mult) }}</td></tr>
+<tr><th>＝ 調整後の銀行残高</th><th class="num">{{ st.adjusted_bank | amount(mult) }}</th></tr>
+</table>
+<table>
+<tr><th>帳簿の側</th><th class="num">金額</th></tr>
+<tr><td>帳簿の期末残高</td><td class="num">{{ st.book_end | amount(mult) }}</td></tr>
+<tr><td>＋／− 帳簿にまだ無い銀行の動き（承認済みの仕訳の預金の分、翌期に記帳された分）</td><td class="num">{{ st.book_movements | amount(mult) }}</td></tr>
+<tr><th>＝ 調整後の帳簿残高</th><th class="num">{{ st.adjusted_book | amount(mult) }}</th></tr>
+</table>
+{% if st.difference == 0 %}
+<p class="ok">差（調整後の銀行残高 − 調整後の帳簿残高）= 0。原因の分からない差は無い。</p>
+{% else %}
+<p class="error"><strong>原因の分からない差: {{ st.difference | amount(mult) }}</strong>（調整後の銀行残高 − 調整後の帳簿残高）</p>
+{% endif %}
+{% endif %}
+<h2>調整項目・仕訳・時期のずれ</h2>
+<table>
+<tr><th>区分</th><th>種類</th><th>日付</th><th class="num">金額</th><th>参照・仕訳番号</th><th>摘要</th><th>理由コード</th><th>経過の日数</th><th>状態</th></tr>
+{% for l in st.lines %}<tr><td>{{ l.section }}</td><td>{{ l.kind }}</td><td>{{ l.date }}</td><td class="num">{{ l.amount | amount(mult) }}</td><td>{{ l.journal or l.ref }}</td><td>{{ l.memo }}</td><td>{{ l.reason_code }}</td><td class="num">{{ l.age_days if l.age_days is not none else '' }}</td><td>{{ l.status }}</td></tr>
+{% else %}<tr><td colspan="9">無し</td></tr>{% endfor %}
+</table>
+<h2>未処理（差に入る）</h2>
+<table>
+<tr><th>側</th><th>日付</th><th class="num">金額</th><th>参照</th><th>摘要</th><th>状態</th></tr>
+{% for l in st.unprocessed_book %}<tr><td>帳簿</td><td>{{ l.date }}</td><td class="num">{{ l.amount | amount(mult) }}</td><td>{{ l.ref }}</td><td>{{ l.memo }}</td><td>{{ l.status }}</td></tr>{% endfor %}
+{% for l in st.unprocessed_bank %}<tr><td>銀行</td><td>{{ l.date }}</td><td class="num">{{ l.amount | amount(mult) }}</td><td>{{ l.ref }}</td><td>{{ l.memo }}</td><td>{{ l.status }}</td></tr>{% endfor %}
+{% for l in st.unprocessed_groups %}<tr><td>組の差額</td><td>{{ l.date }}</td><td class="num">{{ l.amount | amount(mult) }}</td><td>{{ l.ref }}</td><td>{{ l.memo }}</td><td>{{ l.status }}（仕訳がまだ承認されていない）</td></tr>{% endfor %}
+{% if not st.unprocessed_book and not st.unprocessed_bank and not st.unprocessed_groups %}<tr><td colspan="6">無し</td></tr>{% endif %}
+</table>
+{% endif %}
+{% endif %}
+{% endblock %}

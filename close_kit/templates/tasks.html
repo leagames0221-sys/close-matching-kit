@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}作業一覧{% endblock %}
+{% block body %}
+<h1>作業一覧</h1>
+{% if message %}<p class="notice">{{ message }}</p>{% endif %}
+{% if generated and generated.warnings %}<ul class="notice">{% for w in generated.warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+<form method="get" action="{{ base }}/tasks" class="inline">
+  <label>会計期間 <select name="period">{% for p in periods %}<option {{ 'selected' if p == period }}>{{ p }}</option>{% endfor %}</select></label>
+  <button type="submit">表示</button>
+</form>
+{% if "管理者" in user.roles and period %}
+<form method="post" action="{{ base }}/tasks/generate" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><input type="hidden" name="period" value="{{ period }}"><button type="submit">この期間の作業を作る</button></form>
+{% endif %}
+<table>
+<tr><th>作業</th><th>名前</th><th>期日</th><th>状態</th><th>前の作業</th><th>作成者</th><th>確認者</th><th>完了の条件</th><th>条件の結果</th><th>操作</th></tr>
+{% for t in items %}
+<tr{% if t.overdue %} class="overdue"{% endif %}><td>{{ t.def.id }}</td><td>{{ t.def.name }}</td>
+<td>{% if t.row.due_date %}{{ t.row.due_date }}（{{ t.def.counting }} {{ t.def.offset }}）{% else %}{{ t.row.due_note }}{% endif %}{% if t.overdue %} <strong>期日を過ぎている</strong>{% endif %}</td>
+<td>{{ t.row.status }}{% if t.row.note %}<br><small>{{ t.row.note }}</small>{% endif %}</td>
+<td>{% for pid, st in t.preds %}{{ pid }}（{{ st }}）{% if not loop.last %}、{% endif %}{% else %}なし{% endfor %}</td>
+<td>{{ t.def.preparer }}</td><td>{{ t.def.reviewer }}</td>
+<td>{{ t.def.condition }}{% if t.def.condition_match_set %}（{{ t.def.condition_match_set }}）{% endif %}</td>
+<td>{% if t.def.condition == 'なし' %}—{% elif t.condition_problems %}<span class="bad">満たさない: {{ t.condition_problems | join('、') }}</span>{% else %}満たしている{% endif %}</td>
+<td>
+{% if t.row.status == '未着手' and "作成者" in user.roles and user.name == t.def.preparer %}
+<form method="post" action="{{ base }}/tasks/{{ t.row.id }}/prepare" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><input type="hidden" name="period" value="{{ period }}"><button type="submit">作成完了</button></form>{% endif %}
+{% if t.row.status == '作成完了' and "承認者" in user.roles and user.name == t.def.reviewer %}
+<form method="post" action="{{ base }}/tasks/{{ t.row.id }}/complete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><input type="hidden" name="period" value="{{ period }}"><button type="submit">完了</button></form>
+<form method="post" action="{{ base }}/tasks/{{ t.row.id }}/return" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}"><input type="hidden" name="period" value="{{ period }}"><input name="reason" placeholder="差し戻しの理由"><button type="submit">差し戻し</button></form>{% endif %}
+</td></tr>
+{% else %}<tr><td colspan="10">この期間の作業はまだ作っていない。</td></tr>
+{% endfor %}
+</table>
+{% endblock %}

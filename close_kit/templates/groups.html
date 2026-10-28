@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}グループ{% endblock %}
+{% block body %}
+<h1>照合のグループ（{{ ms }}）</h1>
+<form method="get" action="{{ base }}/match/groups" class="inline">
+  <input type="hidden" name="ms" value="{{ ms }}">
+  <label>種類 <select name="kind"><option value="">すべて</option>{% for k in ['自動','候補','手'] %}<option {{ 'selected' if k == kind }}>{{ k }}</option>{% endfor %}</select></label>
+  <label>状態 <select name="state"><option value="">すべて</option>{% for k in ['完了','差額の処理待ち','確認待ち','承認待ち'] %}<option {{ 'selected' if k == state }}>{{ k }}</option>{% endfor %}</select></label>
+  <button type="submit">絞り込む</button>
+</form>
+<table>
+<tr><th>グループ</th><th>種類</th><th>状態</th><th>ルール</th><th>理由</th><th>左の合計</th><th>右の合計</th><th>差額</th><th>期間</th><th>照合した人</th><th>決めた人</th></tr>
+{% for g in groups %}
+<tr><td>{{ g.id }}</td><td>{{ g.kind }}</td><td>{{ g.state }}</td><td>{{ g.rule_order or '' }} {{ g.rule_name }}</td><td>{{ g.reason }}</td>
+<td class="num">{{ g.left_total | amount(lmult) }}</td><td class="num">{{ g.right_total | amount(rmult) }}</td><td class="num">{{ g.diff_minor | amount(lmult) }}</td><td>{{ g.period or '' }}</td><td>{{ g.created_name or '' }}</td><td>{{ g.decided_name or '' }}</td></tr>
+{% if g.id in detail %}
+<tr class="sub"><td></td><td colspan="10">
+{% for r in detail[g.id] %}{{ '左' if r.side == 'L' else '右' }} {{ r.booking_date }} {{ r.amount_minor | amount(mult.get(r.source, 1)) }} {{ r.reference }} {{ r.memo }}{% if r.dup %}［重複］{% endif %}{% if not loop.last %} ／ {% endif %}{% endfor %}
+</td></tr>
+{% endif %}
+{% endfor %}
+</table>
+{% if offset > 0 %}<a href="{{ base }}/match/groups?ms={{ ms | urlencode }}&amp;kind={{ kind | urlencode }}&amp;state={{ state | urlencode }}&amp;offset={{ offset - page }}">前</a>{% endif %}
+{% if groups | length == page %}<a href="{{ base }}/match/groups?ms={{ ms | urlencode }}&amp;kind={{ kind | urlencode }}&amp;state={{ state | urlencode }}&amp;offset={{ offset + page }}">次</a>{% endif %}
+<p>最初の 50 グループは中の行も表示する。</p>
+<p><a href="{{ base }}/match?ms={{ ms | urlencode }}">照合へ戻る</a></p>
+{% endblock %}

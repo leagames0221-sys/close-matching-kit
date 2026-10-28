@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{% if rollback %}前の版に戻す申請を作る{% else %}変更の申請を作る{% endif %}{% endblock %}
+{% block body %}
+<h1>{% if rollback %}前の版に戻す申請を作る{% else %}変更の申請を作る{% endif %}</h1>
+{% if message %}<p class="error">{{ message }}</p>{% endif %}
+{% if not "管理者" in user.roles %}<p>申請を作れるのは管理者だけ。</p>
+{% else %}
+<p>本番の設定の版: {% if production %}版 {{ production }}{% else %}まだ無い（最初の申請になる）{% endif %}。上げる版は、sandbox に読み込んだワークブックの版の番号で選ぶ。</p>
+{% if rollback %}<p>戻す版を選ぶと、その中身に「本番の今の締め」を足した新しい版を作って、それを上げる下書きを作る（前の版のまま戻すと、締めた期間を開いてしまうため）。</p>{% endif %}
+<form method="post" action="{{ base }}/changes/new" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="env" value="{{ env }}">
+  {% if rollback %}<input type="hidden" name="kind" value="rollback">{% endif %}
+  <label>{% if rollback %}戻す版{% else %}上げる版{% endif %}（変更の内容）
+    <select name="to_version_id" required>
+      {% for v in versions %}<option value="{{ v.id }}" {{ 'selected' if values.get('to_version_id') == v.id|string }}>版 {{ v.id }}（{{ v.loaded_at[:19] }}、{{ v.loaded_by }}、sha256 {{ v.sha256[:10] }}）</option>{% endfor %}
+    </select></label>
+  <label>題名 <input name="title" size="60" maxlength="200" value="{{ values.get('title', '') }}" {{ 'required' if not rollback }}></label>
+  <label>理由 <textarea name="justification" rows="3" cols="70" required>{{ values.get('justification', '') }}</textarea></label>
+  {% if not rollback %}
+  <label>期待する機能の影響 <textarea name="functional_impact" rows="2" cols="70">{{ values.get('functional_impact', '') }}</textarea></label>
+  <label>この変更をしない時の影響 <textarea name="impact_if_not" rows="2" cols="70">{{ values.get('impact_if_not', '') }}</textarea></label>
+  <label>戻しの計画（戻し先の版。空にすると、申請を出した時の本番の版）
+    <input name="rollback_version_id" size="6" value="{{ values.get('rollback_version_id', '') }}"></label>
+  {% endif %}
+  <p>急ぎの度合い: Scheduled（計画された変更。急ぎの変更の別の流れは作っていない）。</p>
+  <button type="submit">下書きを作る</button>
+</form>
+{% endif %}
+<p><a href="{{ base }}/changes">変更の申請の一覧へ</a></p>
+{% endblock %}

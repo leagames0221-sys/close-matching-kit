@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}設定{% endblock %}
+{% block body %}
+<h1>設定</h1>
+{% if not cv %}<p>設定の版がまだ無い。管理者が「ワークブック」から読み込む。</p>
+{% else %}
+{% set cfg = cv[1] %}
+<p>設定の版 {{ cv[0] }}（会社名: {{ cfg.description.company }}）</p>
+<h2>データ源（Data Source）</h2>
+<table>
+<tr><th>名前</th><th>形式</th><th>口座</th><th>向き</th><th>最小単位の倍率</th><th>日付の暦</th><th>行のキーの列</th></tr>
+{% for s in cfg.sources %}<tr><td>{{ s.name }}</td><td>{{ s.format }}</td><td>{{ s.account }}</td><td>{{ s.direction }}</td>
+<td class="num">{{ s.multiplier }}</td><td>{{ s.calendar }}</td><td>{{ s.row_key_cols | join('、') }}</td></tr>{% endfor %}
+</table>
+<h2>照合セット（Match Set）</h2>
+<table>
+<tr><th>名前</th><th>左のデータ源</th><th>右のデータ源</th><th>有効</th></tr>
+{% for m in cfg.match_sets %}<tr><td>{{ m.name }}</td><td>{{ m.left }}</td><td>{{ m.right }}</td><td>{{ 'はい' if m.enabled else 'いいえ' }}</td></tr>{% endfor %}
+</table>
+<h2>パスルール（Pass Rule）</h2>
+<table>
+<tr><th>照合セット</th><th>順番</th><th>名前</th><th>種別</th><th>型</th><th>一致させる項目</th><th>date_window</th><th>amount_tolerance_minor</th><th>左の束ねるキー</th><th>右の束ねるキー</th><th>組にするキー</th><th>上限</th><th>有効</th></tr>
+{% for r in cfg.pass_rules %}<tr><td>{{ r.match_set }}</td><td class="num">{{ r.order }}</td><td>{{ r.name }}</td><td>{{ r.kind }}</td><td>{{ r.type }}</td>
+<td>{% for k in r['keys'] %}{{ k[0] }}={{ k[1] }}{% if not loop.last %}；{% endif %}{% endfor %}</td>
+<td class="num">{{ r.date_window }}</td><td class="num">{{ r.amount_tolerance_minor }}</td>
+<td>{{ r.left_bundle | join('、') }}</td><td>{{ r.right_bundle | join('、') }}</td><td>{{ r.pair_key or '' }}</td><td class="num">{{ r.bundle_limit or '' }}</td><td>{{ 'はい' if r.enabled else 'いいえ' }}</td></tr>{% endfor %}
+</table>
+<h2>表示項目・小計項目（Subtotal field）</h2>
+<p>表示項目: {% for d in cfg.display_fields %}{{ d.match_set }}／{{ d.field }}（{{ d.order }}）{% if not loop.last %}、{% endif %}{% endfor %}</p>
+<p>小計項目: {% for d in cfg.subtotal_fields %}{{ d.match_set }}／{{ d.field }}{% if not loop.last %}、{% endif %}{% endfor %}</p>
+<h2>理由コード（Reason Code）</h2>
+<table>
+<tr><th>コード</th><th>名前</th><th>処理</th><th>相手勘定</th><th>有効</th></tr>
+{% for r in cfg.reason_codes %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.action }}</td><td>{{ r.counter_account }}</td><td>{{ 'はい' if r.enabled else 'いいえ' }}</td></tr>{% endfor %}
+</table>
+<h2>会計期間・勘定科目</h2>
+<p>会計期間: {% for p in cfg.periods %}{{ p.name }}（{{ p.start }}〜{{ p.end }}{{ '・締め済み' if p.closed }}）{% if not loop.last %}、{% endif %}{% endfor %}</p>
+<p>勘定科目: {% for a in cfg.accounts %}{{ a.code }} {{ a.name }}（{{ a.class }}）{% if not loop.last %}、{% endif %}{% endfor %}</p>
+{% endif %}
+{% endblock %}
